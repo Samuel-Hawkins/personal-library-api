@@ -1,61 +1,67 @@
 const express = require('express')
 
+const passport = require('passport')
+
 const router = express.Router()
 
 const Book = require('./../models/book')
 
+const customErrors = require('../../lib/custom_errors')
+
+const requireOwnership = customErrors.requireOwnership
+
+const requireToken = passport.authenticate('bearer', { session: false })
+
 const handle404 = require('./../../lib/custom_errors')
 
-router.get('/books', (req, res, next) => {
-  Book.find(console.log)
-    .populate('owner')
+const removeBlanks = require('../../lib/remove_blank_fields')
+
+router.get('/books', requireToken, (req, res, next) => {
+  Book.find({ owner: req.user.id })
     .then((books) => {
       res.status(200).json({ books })
     })
     .catch(next)
 })
 
-router.get('/books/:id', (req, res, next) => {
-  console.log(req.params)
-
-  const id = req.params.id
-
-  Book.findById(id)
+router.get('/books/:id', requireToken, (req, res, next) => {
+  Book.findById(req.params.id)
     .then(handle404)
     .then((book) => {
-      res.status(200).json({ book })
+      res.status(200).json({ book: book.toObject() })
     })
     .catch(next)
 })
 
-router.post('/books', (req, res, next) => {
-  const bookData = req.body.book
+router.post('/books', requireToken, (req, res, next) => {
+  // console.log(req)
+  req.body.owner = req.user._id
 
-  Book.create(bookData)
+  Book.create(req.body)
     .then(book => res.status(201).json({ book }))
     .catch(next)
 })
 
-router.patch('/books/:id', (req, res, next) => {
-  console.log(req.params)
+router.patch('/books/:id', requireToken, removeBlanks, (req, res, next) => {
+  delete req.body.book.owner
 
-  const id = req.params.id
-
-  const bookData = req.body.book
-
-  Book.findById(id)
+  Book.findById(req.params.id)
     .then(handle404)
-    .then(book => book.updateOne(bookData))
+    .then(book => {
+      requireOwnership(req, book)
+
+      return book.updateOne(req.body.book)
+    })
     .then(book => res.json({ book }))
     .catch(next)
 })
 
-router.delete('/books/:id', (req, res, next) => {
-  const id = req.params.id
-
-  Book.findById(id)
+router.delete('/books/:id', requireToken, (req, res, next) => {
+  Book.findById(req.params.id)
     .then(handle404)
     .then((book) => {
+      requireOwnership(req, book)
+
       book.deleteOne()
     })
     .then(() => res.sendStatus(204))

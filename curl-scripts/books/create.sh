@@ -5,6 +5,7 @@ curl "${API}${URL_PATH}" \
 --include \
 --request POST \
   --header "Content-type: application/json" \
+  --header "Authorization: Bearer ${TOKEN}" \
   --data '{
     "book": {
       "title": "'"${TITLE}"'",
