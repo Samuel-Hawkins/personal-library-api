@@ -34,7 +34,6 @@ router.get('/books/:id', requireToken, (req, res, next) => {
 })
 
 router.post('/books', requireToken, (req, res, next) => {
-  // console.log(req)
   req.body.owner = req.user._id
 
   Book.create(req.body)
@@ -43,14 +42,12 @@ router.post('/books', requireToken, (req, res, next) => {
 })
 
 router.patch('/books/:id', requireToken, removeBlanks, (req, res, next) => {
-  delete req.body.book.owner
-
   Book.findById(req.params.id)
     .then(handle404)
     .then(book => {
       requireOwnership(req, book)
 
-      return book.updateOne(req.body.book)
+      return book.updateOne(req.body)
     })
     .then(book => res.json({ book }))
     .catch(next)
